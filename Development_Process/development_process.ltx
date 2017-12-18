@@ -27,7 +27,7 @@ Notmuch is an excellent email system for efficient email storage and powerful qu
 
 To avoid this tediousness, we have created a program that will automatically learn the tagging scheme used by the user from their existing Notmuch database of emails. After adding a call to the learned model in the Notmuch configuration files, any new emails will be automatically tagged. 
 
-This document is a detailed account of the exact process taken to develop the tagger. It details each step of development as well as reasoning behind various development decisions. Roughly the development process can be broken down into the following steps:
+This document is a detailed account of the exact process taken to develop the tagger. It details each step of development as well as reasoning behind various development decisions. Note that this documentation does not reflect the actual linear progression of development. It is possible sections were made and then added onto much later. The goal is to provide a clear narrative of the narrative, not an accurate one. Roughly the development process can be broken down into the following steps:
 
 \begin{enumerate}
 	\item Problem Formulation
@@ -40,7 +40,7 @@ This document is a detailed account of the exact process taken to develop the ta
 \section{Problem Formulation}
 Since tagging is assigning a label to an email, we have a multi-label classification problem. That is, if $E$ is our set of emails and $T$ is our set of tags, we want to correctly assign each email $e$ a subset of tags in $T$. Furthermore, since email is typically text, this is an instance of text classification, which has a rich literature. Before diving into the literature, however, we need to note the real-world constraints and expectations of the user.
 
-First we discuss some constraints brought by the email format and Notmuch interface. This should give us the background to flesh out a detailed usage scenario from the perspective of a user to get a sense of expectations. Then we will consider some issues that could arise.
+First we discuss some constraints brought by the email format and Notmuch interface. This should give us the background to flesh out a detailed usage scenario from the perspective of a user to get a sense of expectations. Then we will consider some questions to get a better idea of the behavior of the classifier.
 
 \subsection{Email Format}
 The object we are working with are emails, whose basic specification is given in  RFC 5322. An example email message is given below.
@@ -65,8 +65,55 @@ Notmuch does not pull email from a server. Instead it already expects the user h
 Notmuch makes use of a shared C library, but has a \href{http://notmuch.readthedocs.io/projects/notmuch-python/en/latest/index.html}{well documented API} for Python, so we will create our program using Python. In addition, the python bindings allow us to read headers directly from the file rather than the Notmuch database. This is beneficial because Notmuch only indexes some of the headers. We may want more information.
 
 \subsection{Usage Scenario}
-After downloading the program, the user should simple place a call to it in one of their email system configuration files and be set. The only requirement is that the call to the program be executed after a call to \texttt{notmuch new}. The program should initialize itself on the first ever call and generate the classification model. From then on, it should automatically tag new emails. It is likely the model will incorrectly tag or fail to tag some emails. If the user fixes these, the model should note these differences and generate a better model. The idea is that the classifier work completely in the background without ever needing explicit work from the user.
+After downloading the program, the user should simply place a call to it in one of their email system configuration files and be set. The only requirement is that the call to the program be executed after a call to \texttt{notmuch new}. The program should initialize itself on the first ever call and generate the classification model. From then on, it should automatically tag new emails. It is likely the model will incorrectly tag or fail to tag some emails. If the user fixes these, the model should note these differences and generate a better model. The idea is that the classifier work completely in the background without ever needing explicit work from the user.
 
-\subsection{}
+\subsection{Questions}
+\subsubsection{Installation}
+\textbf{How should the user install the program?} \\
+Using PyPi is probably the most ``official'' way to go about this. We should automatically look for the Notmuch configuration file to get the location of the database. If this is impossible, then it should fail gracefully on the first run. There is an issue here though. How will the user know it has failed? Perhaps it is better for the user to manually put the location of the database in the configuration file.
+
+\textbf{What about configuration?} \\
+Upon installation, the classifier should be able to work with sensible defaults. Any configuration should be accesible via a configuration file stored at \texttt{XDG\_CONFIG\_HOME}. The configuration file should be human editable, and it will most likely contain few configuration options, so a file with a simple list of key value pairs should be enough. The configuration file will most likely give the user access to tune various parameters of the classifier.
+
+\textbf{Any command line interface?}\\
+This program should work without a command line interface since it does a single thing. The configuration file should be all that is needed to run the program in the way the user wishes.
+
+\subsubsection{Parsing Email}
+\textbf{How should we parse plain text email?} \\
+If the plain text email has no formatting, it should be enough to use the Python standard library to parse this type of text and get a list of words. From there, we can use an natural language processing library like \href{http://www.nltk.org/}{NLTK} to stem words and perform other preprocessing steps. The difficulties come when we need to parse email with different formatting. This does not refer to HTML formatting. We are referring to Markdown style formatting. Since any formatting rules can be applied, it is perhaps not possible to cover them all without treating each as a special case. A good heuristic to use would be to replace all non-alphabet characters, such as ``*'', with a space.
+
+\textbf{What about code?} \\
+Code is a more difficult problem since code contains a mix of formatting as well as plain text. However, it is possible that strings like variable names can provide information for the classifier. We believe removing formatting character should be enough. That way identifiers can be used by the classifier. Language keywords may be an issue though. They may not appear within many documents, and so they will not be removed by preprocessing steps. They may not be very useful for classification either since they are an artifact of the language rather than the context of the email.
+
+\textbf{How do we handle multiple languages?} \\
+Presumably, we will first support English and any other language that uses ASCII characters and has words separated by spaces. To support other languages, we will need to support Unicode. We are currently unsure how Notmuch handles Unicode email. Until we understand this and learn enough about the structures of other languages to separate words into a list.
+
+\textbf{What about formatting done for forwarded email and replies?} \\
+Typically plain text email that is a forward or a reply contain emails within them. It would seem inappropriate for the classifier to take quoted emails into account since it could bias the classifier to associating certain words to tags that belong to large threads. Fortunately, these emails within emails are typically marked, so when parsing the email we should be able to throw away this section. The problem, is the markers are not standardized. It is unclear whether this will be a real issue. If an email does provide any markers, then nothing can be done.
+
+\subsubsection{Classifying Email}
+\textbf{Will the classifier tag spam or trashed mail?}\\
+It is possible that the classifier can tag spam, but it may not be the best option for the user. There are many powerful programs that already exist that focus solely on spam. It is best if the user uses one of those before using this classifier. There should be a configuration option that states what tags the classifier should completely ignore.
+
+\textbf{How will it know which email is new?}\\
+After calling \texttt{notmuch new}, mail that is new is given the tag ``new''. However, the user can use another tag if they want. There should be a configuration option that allows the user to set what tag refers to new mail that needs to be classified.
+
+\textbf{What about an undo option?}\\
+An undo option would be incredibly useful, but would require a command line interface. The goal is to avoid a command line interface, however. A good inbetween would be to add a ``dry-run'' entry to the configuration file, which will simulate the entire process but not actually change any tags within the Notmuch database. The simulation results could be outputted into a file.
+
+\textbf{What about threads?} \\
+Naturally, a user would tag all emails within a single thread with the same tags, but it possible a user may not. In the former case, the classifier can limit itself to tagging new emails that start their own threads. In the latter case, the classifier can ignore threads all together. But note there is some nuance to the former case. A user may want to assign additional tags depending on the content of the new emails in the thread. The question is whether to apply those new tags to all the messages in the thread or just the new ones. Perhaps there shoul be a configuration option that sets whether or not to assign every thread the same tags. This is a simplification, but should work for most cases since threads are a representation for conversations. A typical user would want to read any particular email in the context of the conversation.
+
+\subsubsection{Updating the Classifier}
+\textbf{How often should the classifier recreate itself to account for new data/tags?}
+We need to ensure we update classifier as little as possible, as it may be an intensive operation. On the other hand, we need to ensure the classifier is as accurate as possible, which is better guaranteed by updating. If we only update when the accuracy on new mail falls below a threshold, then we only update it when needed truly needed, which advanced the former requirement. However, it is possible that the classifier stays above the threshold consistently, but could benefit from updating. In this case, it would be better to update if no updates have happened within some threshold of time. Furthemore, it is likely the user will run the classifier everytime they poll for new mail. Polling could happen from every couple seconds to every couple of minutes. This means we can only update after some threshold of time as well. Taking all of this into account, we should only update in two cases.
+\begin{enumerate}
+	\item If $x$ time has passed and accuracy is below $y$.
+	\item If time since last update is above $z$.
+\end{enumerate}
+These parameters should all be set in the configuration file. There is also a question of whether accuracy should be used as the measure of classification success as opposed to precision or recall or f-measure. Perhaps this can be set in the configuation file as well.
+
+\section{Literature Review}
+The literature review will be composed of different sections that discuss literature on broad subproblems we may face. At this point, the problem is finding exactly what problems we may face. We know our overall problem is that of text classification, so to address this we look for surveys on text classification.
 
 \end{document}
