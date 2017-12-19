@@ -123,17 +123,19 @@ These parameters should all be set in the configuration file. There is also a qu
 \section{Literature Review}
 The literature review will be composed of different sections that discuss literature on broad subproblems we may face. At this point, the problem is finding exactly what problems we may face. We know our overall problem is that of text classification, so to address this we look for surveys on text classification. \citet{Aggarwal:12} wrote a book on text mining. In this book they have chapter dedicated to text classification. Reading this chapter, we can break down the problem as such:
 \begin{enumerate}
-	\item Feature Generation - This refers to exactly how we will model the email as data. That is, do we let each word be a feature? Do we look at the presence of a word or its frequency? If it is the latter case, what sort of frequency do we give it? Which headers should be features? Should we look at bi/tri/n-grams as well?
-	\item Feature selection/transformation - Assuming the words will in some way be features, there will be tons of features. How do we figure out which ones to keep and which ones to remove? If we have 4 forms of the same word, should we consider it all the same word? What about words that occur very often like ``and''?
+	\item Feature Generation - This refers to figuring out what features we can get from an email. That is, do we let each word be a feature? Do we look at the presence of a word or its frequency? If it is the latter case, what sort of frequency do we give it? Which headers should be features? Should we look at bi/tri/n-grams as well?
+	\item Feature Selection/Extraction - Assuming the words will in some way be features, there will be tons of features. How do we figure out which ones to keep and which ones to remove? If we have 4 forms of the same word, should we consider it all the same word? What about words that occur very often like ``and''? Perhaps we want to create a new set of features if it helps with classification?
 	\item Classifier Type Selection - What type of classifier do we use? A decision tree? A neural network? A SVM?
 \end{enumerate}
 
-\subsection{Text Representation}
-There is really only one general way of generating features from text in an email message: $n$-grams. The $n$-grams of a message refer to each sequence of $n$ numbers. So if our message is ``Alice said hi to Bob'', then the $3$-grams are $(Alice, said, hi), (said, hi, to)$, and $(hi, to, Bob)$. According to \citet{Aggarwal:12}, text is typically represented using $1$-grams. This is also called the ``bag-of-words'' or ``vector space model'' representation of text. Since the bag-of-words model is standard and has been used extensively, we should use it as well. However, there are words like ``data mining'' that represent one concept, so perhaps we should include $2$-grams, and $3$-grams as well. This will add to the total number of features, but some preliminary feature selection should remove almost all the $n$-grams (for $n>1$) this introduces.
+\subsection{Feature Generation}
+An email is made up of the headers and the message. It seems that \citet{Berry:07} found that using the extensive feature set of SpamAssassin, which includes information from the headers, results in better classification performance than using just the message. This is empirical evidence that fits the intuition we gave before, so we should also use headers.
+
+There is really only one general way of generating features from the message. The $n$-grams of a message refer to each sequence of $n$ numbers. So if our message is ``Alice said hi to Bob'', then the $3$-grams are $(Alice, said, hi), (said, hi, to)$, and $(hi, to, Bob)$. According to \citet{Aggarwal:12}, text is typically represented using $1$-grams. This is also called the ``bag-of-words'' or ``vector space model'' representation of text. Since the bag-of-words model is standard and has been used extensively, we should use it as well. However, there are words like ``data mining'' that represent one concept, so perhaps we should include $2$-grams, and $3$-grams as well. This will add to the total number of features, but some preliminary feature selection should remove almost all the $n$-grams (for $n>1$) this introduces.
 
 Suppose we iterate over all email messages $M_1, M_2, \cdots, M_m$, representing each with a bag-of-words model, then we can derive an initial set of features $(w_1, w_2, \cdots w_n)$ where $w_i$ represents a word that appears in any of the emails. Note that for our purposes, we'll just consider an $n$-gram (for $n>1$) as a single word. Note our data set looks like the following
 
-\begin{table}
+\begin{table}[h]
 	\centering
 	\begin{tabular}{c c c c c}
 		\toprule
@@ -159,9 +161,38 @@ Note that all the entries are missing values. Now that we have our features, we 
 If a word is contained in a lot of emails, then idf is small. tf-idf is simply the product of tf and idf when tf is calculated using the number of words in an email. Note that a normalization step is typically done after calculating tf-idf values.
 \end{enumerate}
 
-It is clear that tf-idf is our best bet for the values to assign the word features since they denote the importance of a word in the most robust manner. There is another concern, however. Do we calculate tf-idf values for an email in a unsupervised or supervised fashion. Indeed, there exist values similar to tf-idf that work in a supervised manner.
+Out of these three, tf-idf values are clearly the best to assign the word features since they denote the importance of a word in the most robust manner.
 
-To address the question of whether to include headers, it seems that \citet{Berry:07} found that using the extensive feature set of SpamAssassin, which includes information from the headers, results in better classification performance than using just the message. This is empirical evidence that fits the intuition we gave before, so we should also use headers.
+\subsection{Feature Selection/Extraction}
+Now that we have our word features, we have to figure out which ones to keep and which ones to discard. There are two ways of doing this. We can select from the original set of word features or we can extract a new set of features to classify by from the original set of word features. The former is a classical method of getting the final set of features and has the empirical evidence to back up its usefullnes. The latter is a more modern way which promises to do better but may not have as much evidence to back it up.
+
+Before we talk about selection and extraction, we will talk about simple preprocessing steps that are technically selection, but seem to basic to go under that heading. According to \citet{Aggarwal:12}, these steps include
+
+\begin{enumerate}
+	\item Removing punctuation.
+	\item Removing stop words, which are words very common to a language like ``and'' or ``the'', which are highly unlikely to discriminate between classes.
+	\item Stem words. This refers to removing prefixes and suffixes such that words like ``relearn'' and ``unlearn'' get coalesced into just ``learn''. This is useful because lexically they are all the same.
+\end{enumerate}
+
+\subsubsection{Feature Selection}
+We have been a bit misleading so far. The normal tf-idf is unsupervised, but \citet{Lan:09} give a survey and comparison of other metrics similar to td-idf that work in a supervised manner. In these metrics rather than multiplying tf by idf, they multiply tf by something like information gain or chi square. They suggest a supervised metric that performs better than any other metric in text classification, but it only works marginally better than tf-idf. We can assign values based on these supervised metrics. And for feature selection we can remove features based on whether values for a word feature lie outside some threshold.
+
+\citet{Aggarwal:12} states people have used slightly different formulation of information gain, chi square, etc. to select features from the bag-of-words model before any explicit values have been assigned to them. With supervised metric, it seems we are assigning values that denote how important a word is to particular message in a supervised fashion. If a word is unimportant to all messages we can remove that word feature. In this different formulation, it seems we are assigning values that denote how important a word is to the entire set of messages, and removing word features based on this. It is unclear whether both approaches do the same thing in slightly different ways. We are hesitant to use supervised metrics since the study found it did not make much of a difference. In addition, the latter formulation is well documented.
+
+Another method of feature selection is to use linear classifier weights. It does an initial classification of a subset of the data using the full feature set using a linear classifier like a linear SVM or neural network. After this is done, some weights will be given to the classifier. The idea is to use these weights to chooose the features. Small weights imply the feature is unimportant. \citet{Mladenic:04} show that this sort of feature selection provides better results over prior ones. In addition it may simplify the implementation since the same classifier can be used for feature selection and for classification in the end. \citet{Hardin:04} give some theoretical evidence stating weights generated by linear SVMs can assign zero weights to non-relevant features in the sample limit. However, they have also shown this can theoretically happen for relevant features as well.
+
+\subsubsection{Feature Extraction}
+According to \citet{Aggarwal:12} there are a couples bodies of feature extraction algorithms for messages. They are all complicated so we do not discuss them in detail, but we will give a short overview.
+
+\begin{enumerate}
+	\item Latent Semantic Analsys (LSA) - A body of algorithms that take a co-occurrence matrix of words and documents, and produces an approximation to that matrix that better shows what words are relevant to different classes of documents. There are supervised and unsupervised versions of this. It has been shown there isn't much of a performance difference between unsupervised an supervised versions though.
+	\item Clustering - This a clever one. It essentially clusters the data with supervision, and chooses the word features that occur most commonly within each cluster. Some work has shown this provides an increase in classification performance.
+	\item Linear Discriminant Analysis (LDA) - TODO
+	\item Generalized Singular Value Decomposition - TODO
+	\item Word Embeddings - This refers to a recent work on algorithms which transforms a word into a representative vector. A prominent one includes word2vec. Unlike td-idf which only looks at presence and counts, word2vec takes semantics into account, which could help with classification. If we take a message and average up all the vectors for the words, then we can get a vector that represents the meaning of that message. The intuition would be that vectors that have the similar meanings will have small distance between them. The downside is that word2vec uses a neural network, so we will not a have a good idea of what is going on underneath and training times could be very long. Note that there is also something called doc2vec, which converts an entire message into a vector in a different way. \citet{Lau:16} show that doc2vec and word2vec perform very well at classification tasks against other document embedding algorithms. It may be possible to avoid training if we use a model already trained on external corpora. This would eliminate the need to update the tagger at all. Then again, some of these model files are gigabytes in size.
+
+It is difficult to choose between these since there doesn't seem to exist any paper that compares everything on a large set of documents in classification tasks. Perhaps it is best, if we implement one to begin and implement other and give the user the ability to switch.
+\end{enumerate}
 
 \bibliographystyle{plainnat}
 \bibliography{development_process}
