@@ -3,6 +3,10 @@
 \usepackage[utf8]{inputenc}
 \usepackage[margin=1in]{geometry}
 \usepackage{hyperref}
+\usepackage[numbers]{natbib}
+\usepackage{hyperref}
+\usepackage{booktabs}
+\usepackage{mathtools}
 
 \hypersetup{
     colorlinks=true,     
@@ -27,7 +31,7 @@ Notmuch is an excellent email system for efficient email storage and powerful qu
 
 To avoid this tediousness, we have created a program that will automatically learn the tagging scheme used by the user from their existing Notmuch database of emails. After adding a call to the learned model in the Notmuch configuration files, any new emails will be automatically tagged. 
 
-This document is a detailed account of the exact process taken to develop the tagger. It details each step of development as well as reasoning behind various development decisions. Note that this documentation does not reflect the actual linear progression of development. It is possible sections were made and then added onto much later. The goal is to provide a clear narrative of the narrative, not an accurate one. Roughly the development process can be broken down into the following steps:
+This document is a detailed and somewhat informal account of the process taken to develop the tagger. It details each step of development as well as reasoning behind various development decisions. Note that this documentation does not reflect the actual linear progression of development. It is possible sections were made and then added onto much later. The goal is to provide a clear narrative of the process, not an accurate one. Roughly the development process can be broken down into the following steps:
 
 \begin{enumerate}
 	\item Problem Formulation
@@ -91,6 +95,9 @@ Presumably, we will first support English and any other language that uses ASCII
 \textbf{What about formatting done for forwarded email and replies?} \\
 Typically plain text email that is a forward or a reply contain emails within them. It would seem inappropriate for the classifier to take quoted emails into account since it could bias the classifier to associating certain words to tags that belong to large threads. Fortunately, these emails within emails are typically marked, so when parsing the email we should be able to throw away this section. The problem, is the markers are not standardized. It is unclear whether this will be a real issue. If an email does provide any markers, then nothing can be done.
 
+\textbf{What about mispelled words?}
+This is a generally unfortunate situation, especially if a word important to the tag of the email is mispelled. We could use a spell checking library. Depending on the library, spell checking may not be available for languages besides English. In addition, it may be a huge performance hit to spell check every single word. It may be better to operate under the assumption that all emails are correctly spelled.
+
 \subsubsection{Classifying Email}
 \textbf{Will the classifier tag spam or trashed mail?}\\
 It is possible that the classifier can tag spam, but it may not be the best option for the user. There are many powerful programs that already exist that focus solely on spam. It is best if the user uses one of those before using this classifier. There should be a configuration option that states what tags the classifier should completely ignore.
@@ -114,6 +121,49 @@ We need to ensure we update classifier as little as possible, as it may be an in
 These parameters should all be set in the configuration file. There is also a question of whether accuracy should be used as the measure of classification success as opposed to precision or recall or f-measure. Perhaps this can be set in the configuation file as well.
 
 \section{Literature Review}
-The literature review will be composed of different sections that discuss literature on broad subproblems we may face. At this point, the problem is finding exactly what problems we may face. We know our overall problem is that of text classification, so to address this we look for surveys on text classification.
+The literature review will be composed of different sections that discuss literature on broad subproblems we may face. At this point, the problem is finding exactly what problems we may face. We know our overall problem is that of text classification, so to address this we look for surveys on text classification. \citet{Aggarwal:12} wrote a book on text mining. In this book they have chapter dedicated to text classification. Reading this chapter, we can break down the problem as such:
+\begin{enumerate}
+	\item Feature Generation - This refers to exactly how we will model the email as data. That is, do we let each word be a feature? Do we look at the presence of a word or its frequency? If it is the latter case, what sort of frequency do we give it? Which headers should be features? Should we look at bi/tri/n-grams as well?
+	\item Feature selection/transformation - Assuming the words will in some way be features, there will be tons of features. How do we figure out which ones to keep and which ones to remove? If we have 4 forms of the same word, should we consider it all the same word? What about words that occur very often like ``and''?
+	\item Classifier Type Selection - What type of classifier do we use? A decision tree? A neural network? A SVM?
+\end{enumerate}
+
+\subsection{Text Representation}
+There is really only one general way of generating features from text in an email message: $n$-grams. The $n$-grams of a message refer to each sequence of $n$ numbers. So if our message is ``Alice said hi to Bob'', then the $3$-grams are $(Alice, said, hi), (said, hi, to)$, and $(hi, to, Bob)$. According to \citet{Aggarwal:12}, text is typically represented using $1$-grams. This is also called the ``bag-of-words'' or ``vector space model'' representation of text. Since the bag-of-words model is standard and has been used extensively, we should use it as well. However, there are words like ``data mining'' that represent one concept, so perhaps we should include $2$-grams, and $3$-grams as well. This will add to the total number of features, but some preliminary feature selection should remove almost all the $n$-grams (for $n>1$) this introduces.
+
+Suppose we iterate over all email messages $M_1, M_2, \cdots, M_m$, representing each with a bag-of-words model, then we can derive an initial set of features $(w_1, w_2, \cdots w_n)$ where $w_i$ represents a word that appears in any of the emails. Note that for our purposes, we'll just consider an $n$-gram (for $n>1$) as a single word. Note our data set looks like the following
+
+\begin{table}
+	\centering
+	\begin{tabular}{c c c c c}
+		\toprule
+		& $w_1$ & $w_2$ & $\cdots$ & $w_n$ \\
+		\midrule
+		$M_1$ & & & & \\
+		$M_2$ & & & & \\
+		$\vdots$ & & & & \\
+		$M_m$ & & & & \\
+		\bottomrule
+	\end{tabular}
+\end{table}
+
+Note that all the entries are missing values. Now that we have our features, we have to figure out exactly what values this features take. We want the values to represent how important a particular word is to that message. The intuition is that if certain is emails with a certain tag tend to have a certain set of words, then a new email, whose important words compromise much of that set, should have the same tag. There are multiple ways to define the importance of a word. \href{https://stats.stackexchange.com/questions/31060/bag-of-words-vs-vector-space-model}{This} StackExchange post gives a good explanation, which we reproduce here.
+
+\begin{enumerate}
+	\item Binary Values - If word $w_i$ is present in message $M_j$, then the value at entry $(j,i)$ in the data set is 1. Otherwise it is 0. This is a good start since a word cannot be important if it doesn't appear, but it seems to remove too much information. In particular it is possible a word can be present in two emails that get tagged with different tags, but the word appears more often in an email with a particular tag. For example ``linear'' may generally appear in emails tagged ``math'' but appear very often in emails with a tag ``linearClassifierResearch''. Term Frequency addresses this issue.
+	\item Term Frequency (tf) - If word $w_i$ is present in message $M_j$, then the value at entry $(j,i)$ in the data set is the number of times $w_i$ appears in $M_j$. Some variations to this include dividing the count by the number of words in $M_j$. This is a measure of how often a word appears in a message. The intuition is that if a word appers more often, then it is more important to the document. This intuition fails with words, such as ``the'', which appear in many messages. tf-idf accounts for this.
+	\item Term Frequency-Inverse Document Frequency (tf-idf) - This value uses tf and a new value idf. The purpose of $idf$ is to characterize how often a word appears in the entire set of emails. It is calculated as
+\begin{align*}
+	idf(w) = \log\frac{\text{Number of emails}}{\text{Number of emails containing $w$}}
+\end{align*}
+If a word is contained in a lot of emails, then idf is small. tf-idf is simply the product of tf and idf when tf is calculated using the number of words in an email. Note that a normalization step is typically done after calculating tf-idf values.
+\end{enumerate}
+
+It is clear that tf-idf is our best bet for the values to assign the word features since they denote the importance of a word in the most robust manner. There is another concern, however. Do we calculate tf-idf values for an email in a unsupervised or supervised fashion. Indeed, there exist values similar to tf-idf that work in a supervised manner.
+
+To address the question of whether to include headers, it seems that \citet{Berry:07} found that using the extensive feature set of SpamAssassin, which includes information from the headers, results in better classification performance than using just the message. This is empirical evidence that fits the intuition we gave before, so we should also use headers.
+
+\bibliographystyle{plainnat}
+\bibliography{development_process}
 
 \end{document}
