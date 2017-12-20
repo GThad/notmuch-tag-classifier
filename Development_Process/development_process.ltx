@@ -125,7 +125,7 @@ The literature review will be composed of different sections that discuss litera
 \begin{enumerate}
 	\item Feature Generation - This refers to figuring out what features we can get from an email. That is, do we let each word be a feature? Do we look at the presence of a word or its frequency? If it is the latter case, what sort of frequency do we give it? Which headers should be features? Should we look at bi/tri/n-grams as well?
 	\item Feature Selection/Extraction - Assuming the words will in some way be features, there will be tons of features. How do we figure out which ones to keep and which ones to remove? If we have 4 forms of the same word, should we consider it all the same word? What about words that occur very often like ``and''? Perhaps we want to create a new set of features if it helps with classification?
-	\item Classifier Type Selection - What type of classifier do we use? A decision tree? A neural network? A SVM?
+	\item Classifier Selection - What type of classifier do we use? A decision tree? A neural network? A SVM?
 \end{enumerate}
 
 \subsection{Feature Generation}
@@ -193,6 +193,11 @@ According to \citet{Aggarwal:12} there are a couples bodies of feature extractio
 \end{enumerate}
 
 It is difficult to choose between these since there doesn't seem to exist any paper that compares everything on a large set of documents in classification tasks. Perhaps it is best, if we implement one to begin and implement other and give the user the ability to switch. The promising results of word embedding suggest we should implement tha first, but the file sizes of pre-trained word vectors is a huge turn off as well as training times. We could simply keep the trained model elsewhere and provide and API to get the vectors, but this would be a privacy concern since the words would be sent to a third party. It would be better if all classification could be done offline.
+
+\subsection{Classifier Selection}
+Ideally we should be able to test multiple classifiers on multiple datasets. This venture may be outside the time frame of this project, however. Therefore, we will rely on the literature for information on what classifier should handle emails the best. \citet{Aggarwal:12} gives an overview of the different types of classifiers we can use as well as their advantages and disadvantages. We will not reproduce this since it would be extensive. We will instead note that the authors state that linear classifiers like linear SVMs and neural networks have shown incredible success with text classification over other methods. Indeed, SVMs are catered for text in some ways since text is typically high dimensional and sparse.
+
+In either case, we should try to at least do some simple classification using basic feature selection and some basic configurations of different classifiers.
 
 \bibliographystyle{plainnat}
 \bibliography{development_process}
