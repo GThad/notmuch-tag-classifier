@@ -204,6 +204,36 @@ In either case, we should try to at least do some simple classification using ba
 
 %%%%%%%%%% ----------- %%%%%%%%%% ----------- %%%%%%%%%% ----------- %%%%%%%%%%
 
+\section{Experimentation}
+The idea of experimentation is to get some experience building classifiers and to understand what combinations of feature generation, feature selection, classifier choice, and parameter tuning work best on a test set of emails. In addition, we prototype code (or at least logic) for the release version.
+
+\subsection{The Dataset}
+The database we will be using is the labeled \href{http://bailando.sims.berkeley.edu/enron_email.html}{Enron} email database from Berkeley. The Enron dataset has has extensive use in the literature and elsewhere, so we will use it as well. More information about the origins of the database can be found \href{http://www.cs.cmu.edu/~enron/}{here}. Essentially the Enron company underwent federal investigation and during the investigation this database was made public. A group of universities then cleaned up the database. The Berkeley version contains around 1700 labeled emails. Note that this is a subset of the much larger original Enron database which contains around 500,000 emails but is unlabeled.
+
+The emails in the Berkeley version were labeled by two students. We note that the label organization is a bit haphazard, but it is incredibly useful and more than sufficient. We note the following facts about the labels
+
+\begin{enumerate}
+	\item Each email is labeled with a set of labels.
+	\item Each label is given as an ordered pair of integers $(x,y)$. $x$ denotes the ``type'' of the label, and ``y'' denotes the label within that type. This is to allow different flavors of labeling. For example we can label text by topic, sentiment, etc. That being said, the labeling is odd. These are possible values of $x$.
+	\begin{itemize}
+		\item $x = 1$ means $y$ is a label about the topic of the emails.
+		\item $x = 2$ means $y$ is a label about the ``content'' of the email, which they take to mean the form of the actual text. An email would have $x = 2$ if it was a forwarded email, a document, an article, press release, a report, a joke, etc.
+		\item $x = 3$ means $y$ is a sub-label of any email labeled ``1.1''. Essentially a label of ``1.1'' means refer to another label with $x = 3$ for a more specific label, if it exists.
+		\item $x = 4$ means $y$ is a label about the emotional tone of the email.
+	\end{itemize}
+	\item There are 53 possible labels total. 8 with $x=1$, 13 with $x=2$, 13 with $x=3$, and 19 with $x=4$.
+	\item Each label $(x,y)$ is given a description.
+	\item Each label also comes with a third frequency value $z$, which denotes whether one or both of the students agreed on the label.
+\end{enumerate}
+
+We note that, for our purposes, we do not need to use all the labels, we need to use a different numbering system, and we need to assign concrete string values to each numeric label rather than descriptions.
+
+Users typically would not tag emails with emotional tone, so we do not use any tags with $x=4$. There are labels and sub-labels, so we need to choose whether to label an email with the top level label as well as the sub-label or with just the sub-label. For the sake of generality, we will label an email with all levels of tags that apply to it. We will also only give emails labels that have $z=2$ since our use case has only one person tagging emails. We also only use some $x=2$ labels trying to avoid trivial labels like ``contains URLs''. The final derived set of labels as well as their numbers is given below.
+
+\begin{enumerate}
+	\item company
+\end{enumerate}
+
 \bibliographystyle{plainnat}
 \bibliography{development_process}
 
