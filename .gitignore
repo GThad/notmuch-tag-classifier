@@ -4,3 +4,7 @@ docs/Development_Process/*.aux
 docs/Development_Process/*.out
 docs/Development_Process/*.blg
 docs/Development_Process/*.bbl
+
+experimentation/enron/emails/*.cats
+experimentation/enron/emails/*.txt
+*.ipynb_checkpoints

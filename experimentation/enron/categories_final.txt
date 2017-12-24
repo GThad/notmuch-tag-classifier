@@ -1,0 +1,56 @@
+The Berkeley labeled enron database labels each email with multiple labels.
+The labeling was done by two individuals, so there are also frequencies next to each
+label that tell us whether one or both of them assigned an email that label.
+The labeling done has some eccentricities, however. There are labels, sub-labels, and
+sub-sub-labels. We need to choose which to keep. For the sake of generality, we will
+use all these labels and append names separated by dashes as needed. 
+In addition, the labels are numbers and each number is assigned a label descriptions.
+We will map here, the numbers to new number as well as concrete labels. Note we
+don't care about level 4 labels since they give tone. We care most about 1 and 3 since
+they give topics. We are unsure about 2 since they give labels based on data types.
+We also note that this test with the Enron database is going to be a bit off of the
+actual use case since the database consists of the emails of multiple people
+rather than one. In a sense, we need to pretend these emails are for one person.
+Perhaps this will test the limits since we are using labels from multiple people for
+one person.
+
+Entries in form:
+	x -> y, aLabel
+which means if number x appears in the .cats file and has frequency 2, then add
+aLabel (y) to the label set for the email. What is given below is a subset of the given
+categories.
+
+1.1 -> 1, company
+	1.3 -> 2, company-personal
+	3.1 -> 3, company-regulations
+	3.2 -> 4, company-strategy
+	3.3 -> 5, company-image
+		3.3 -> 6, company-image-current
+	3.4 -> 5, company-image
+		3.4 -> 7, company-image-future
+	3.5 -> 8, company-contributers
+	3.6 -> 9, company-california_crisis
+	3.7 -> 10, company-internal
+		3.7 -> 11, company-internal-policy
+	3.8 -> 10, company-internal
+		3.8 -> 12, company-internal-operations
+	3.9 -> 13, company-allies
+	3.10 -> 14, company-legal
+	3.11 -> 15, company-talk_points
+	3.12 -> 16, company-minutes
+	3.13 -> 17, company-trip_reports
+1.2 -> 18, personal
+1.4 -> 19, logistics
+1.5 -> 20, career
+1.6 -> 21, collaboration
+1.7 -> 22, empty
+1.8 -> 22, empty
+2.4 -> 23, news-article
+2.5 -> 24, gov
+	2.5 -> 25, gov-report
+2.6 -> 24, gov
+	2.6 -> 26, gov-action
+2.7 -> 27, press-release
+2.10 -> 28, newsletter
+2.11 -> 29, joke
+2.12 -> 29, joke
