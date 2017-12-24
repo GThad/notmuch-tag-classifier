@@ -1,6 +1,6 @@
-Development_Process/*.synctex*
-Development_Process/*.log
-Development_Process/*.aux
-Development_Process/*.out
-Development_Process/*.blg
-Development_Process/*.bbl
+docs/Development_Process/*.synctex*
+docs/Development_Process/*.log
+docs/Development_Process/*.aux
+docs/Development_Process/*.out
+docs/Development_Process/*.blg
+docs/Development_Process/*.bbl
